@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using HtmlAgilityPack;
 
 namespace CurlieIndex
@@ -9,13 +13,16 @@ namespace CurlieIndex
         private const string CurlieHomepage = "http://curlie.org";
 
         private HtmlWeb CurlieWeb { get; } = new HtmlWeb();
+        private CurlieThrottler CurlieThrottler { get; } = new CurlieThrottler();
 
         //todo: should be fast to index to find already existing categories
-        private List<Category> Categories { get; } = new List<Category>();
+        private ConcurrentDictionary<string, Category> Categories { get; } = new ConcurrentDictionary<string, Category>();
 
-        public void Begin()
+        public async Task Begin()
         {
-            var curlieHomePageDoc = CurlieWeb.Load(CurlieHomepage);
+            //var curlieHomePageDoc = CurlieWeb.Load(CurlieHomepage);
+            CurlieThrottler.Start();
+            var curlieHomePageDoc = await CurlieThrottler.LoadPage(CurlieHomepage);
             var rootNode = curlieHomePageDoc.DocumentNode;
 
             var categorySectionNode = rootNode.SelectSingleNode("//section[@id='category-section']");
@@ -23,13 +30,23 @@ namespace CurlieIndex
 
             foreach (var categoryAside in categoryAsides)
             {
-                ParseRootCategory(categoryAside);
+                await ParseRootCategory(categoryAside);
                 break;
             }
 
+            try
+            {
+                WriteToCsv();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.StackTrace);
+            }
+
+            return;
         }
 
-        private void ParseRootCategory(HtmlNode categoryNode)
+        private async Task ParseRootCategory(HtmlNode categoryNode)
         {
             var aNode = categoryNode.SelectSingleNode("div/h2/a");
 
@@ -37,26 +54,41 @@ namespace CurlieIndex
             var name = aNode.InnerText;
             var url = aNode.Attributes["href"].Value;
 
-            var category = new Category()
+            var category = new Category
             {
                 Name = name,
-                Url = url,
-                Parent = null
+                Url = url
             };
-            Categories.Add(category);
-
-            ParseSubCategories(category);
-
+            if (Categories.TryAdd(category.Url, category))
+            {
+                await ParseSubCategories(category);
+            }
         }
 
-        private void ParseSubCategories(Category rootCategory)
+        private async Task ParseSubCategories(Category rootCategory)
         {
             //read category page to find subcategories, related and other languages
-            var categoryRoot = CurlieWeb.Load(GetCategoryUrl(rootCategory.Url)).DocumentNode;
-            var subcategoriesSection = categoryRoot.SelectSingleNode("//div[@id='cat-list-content-main']");
+            var categoryPage = await CurlieThrottler.LoadPage(GetCategoryFullUrl(rootCategory.Url));
+            var categoryRoot = categoryPage.DocumentNode;
 
-            var catItems = subcategoriesSection.SelectNodes("div[@class='cat-item']");
 
+            //parse subcategories
+            var subcategoriesDiv = categoryRoot.SelectSingleNode("//div[@id='subcategories-div']");
+
+            //if category has no subcategory, just return
+            if (subcategoriesDiv == null) return;
+
+            var subcategoriesSections = subcategoriesDiv.SelectNodes("section[@class='children']");
+
+            //var catItems = subcategoriesSections.SelectMany(subcategoriesSection => 
+            //    subcategoriesSection.SelectNodes("div/div[@class='cat-item']"));
+
+            var catItems = new List<HtmlNode>();
+            foreach (var subcategoriesSection in subcategoriesSections)
+            {
+                catItems.AddRange(subcategoriesSection.SelectNodes("div/div[@class='cat-item']"));
+            }
+            
             foreach (var catItem in catItems)
             {
                 var aNode = catItem.SelectSingleNode("a");
@@ -67,26 +99,54 @@ namespace CurlieIndex
                 var category = new Category()
                 {
                     Name = name,
-                    Url = url,
-                    Parent = rootCategory
+                    Url = url
                 };
-                Categories.Add(category);
+
+                category.Parents.Add(rootCategory);
+                if (Categories.TryAdd(category.Url, category))
+                {
+                    await ParseSubCategories(category);
+                }
+                else
+                {
+                    Categories[category.Url].Parents.Add(rootCategory);
+                }
             }
         }
 
-        private string GetCategoryUrl(string url)
+        private void WriteToCsv()
+        {
+            using (var stream = new StreamWriter(@"./output.csv"))
+            {
+                //write header
+                stream.WriteLine("id,name,url,primary_parent,secondary_parents");
+
+                var categories = Categories.Values.ToList();
+                categories.Sort((category1, category2) => 
+                    category1.Id.CompareTo(category2.Id));
+
+                foreach (var category in categories)
+                {
+                    string primaryParent = "null";
+                    string parents = "null";
+                    if (category.Parents.Count != 0)
+                    {
+                        primaryParent = category.PrimaryParent?.Id.ToString();
+                        var secondaryParents = category.Parents
+                            .Where(parent => parent.Id != category.PrimaryParent?.Id)
+                            .Select(parent => parent.Id);
+
+                        parents = string.Join(";", secondaryParents);
+                    }
+
+                    stream.WriteLine($"{category.Id},{category.Name},{category.Url},{primaryParent},{parents}");
+                }
+            }
+        }
+
+        private string GetCategoryFullUrl(string url)
         {
             return CurlieHomepage + url;
-        }
-
-        private static string Capitalize(string s)
-        {
-            if (string.IsNullOrEmpty(s))
-            {
-                return string.Empty;
-            }
-            // Return char and concat substring.  
-            return char.ToUpper(s[0]) + s.Substring(1);
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace CurlieIndex
@@ -12,9 +14,23 @@ namespace CurlieIndex
         public string Url { get; set; }
 
         //todo: can have multiple parents
-        public Category Parent { get; set; }
+        public List<Category> Parents { get; } = new List<Category>();
         public List<int> Related { get; set; }
         public List<int> OtherLanguages { get; set; }
+
+        public Category PrimaryParent
+        {
+            get
+            {
+                foreach (var parent in Parents)
+                {
+                    if (Url.StartsWith(parent.Url))
+                        return parent;
+                }
+
+                return null;
+            }
+        }
 
         public Category()
         {

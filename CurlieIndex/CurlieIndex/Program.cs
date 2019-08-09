@@ -10,9 +10,7 @@ namespace CurlieIndex
         {
             Console.WriteLine("Hello World!");
             var curlie = new Curlie();
-            curlie.Begin();
-
-
+            curlie.Begin().Wait();
             return;
         }
     }
