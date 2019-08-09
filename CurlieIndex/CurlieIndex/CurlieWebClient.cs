@@ -29,20 +29,32 @@ namespace CurlieIndex
         {
             return new Task<HtmlDocument>(() =>
             {
-                var request = (HttpWebRequest)WebRequest.Create(url);
-                var proxyAddress = proxyList.NextProxy();
-                var proxy = new WebProxy(proxyAddress) {BypassProxyOnLocal = false};
-                request.Proxy = proxy;
-                request.Method = "GET";
-                var response = (HttpWebResponse)request.GetResponse();
-
-                Console.WriteLine($"Proxy {proxyAddress} working");
-
-                using (var reader = new StreamReader(response.GetResponseStream() ?? throw new InvalidOperationException(), Encoding.UTF8))
+                while (true)
                 {
-                    var doc = new HtmlDocument();
-                    doc.Load(reader.BaseStream);
-                    return doc;
+                    var request = (HttpWebRequest)WebRequest.Create(url);
+                    var proxyAddress = proxyList.NextProxy();
+                    var proxy = new WebProxy(proxyAddress) { BypassProxyOnLocal = false };
+                    request.Proxy = proxy;
+                    request.Method = "GET";
+                    try
+                    {
+                        var response = (HttpWebResponse) request.GetResponse();
+
+                        Console.WriteLine($"Proxy {proxyAddress} working");
+
+                        using (var reader =
+                            new StreamReader(response.GetResponseStream() ?? throw new InvalidOperationException(),
+                                Encoding.UTF8))
+                        {
+                            var doc = new HtmlDocument();
+                            doc.Load(reader.BaseStream);
+                            return doc;
+                        }
+                    }
+                    catch (WebException ex)
+                    {
+                        Console.WriteLine($"Proxy {proxyAddress} not working");
+                    }
                 }
             });
         }
