@@ -13,7 +13,7 @@ namespace CurlieIndex
         private const string CurlieHomepage = "http://curlie.org";
 
         private HtmlWeb CurlieWeb { get; } = new HtmlWeb();
-        private CurlieThrottler CurlieThrottler { get; } = new CurlieThrottler();
+        private CurlieWebClient CurlieWebClient { get; } = new CurlieWebClient();
 
         //todo: should be fast to index to find already existing categories
         private ConcurrentDictionary<string, Category> Categories { get; } = new ConcurrentDictionary<string, Category>();
@@ -21,8 +21,8 @@ namespace CurlieIndex
         public async Task Begin()
         {
             //var curlieHomePageDoc = CurlieWeb.Load(CurlieHomepage);
-            CurlieThrottler.Start();
-            var curlieHomePageDoc = await CurlieThrottler.LoadPage(CurlieHomepage);
+            CurlieWebClient.Start();
+            var curlieHomePageDoc = await CurlieWebClient.LoadPage(CurlieHomepage);
             var rootNode = curlieHomePageDoc.DocumentNode;
 
             var categorySectionNode = rootNode.SelectSingleNode("//section[@id='category-section']");
@@ -68,7 +68,7 @@ namespace CurlieIndex
         private async Task ParseSubCategories(Category rootCategory)
         {
             //read category page to find subcategories, related and other languages
-            var categoryPage = await CurlieThrottler.LoadPage(GetCategoryFullUrl(rootCategory.Url));
+            var categoryPage = await CurlieWebClient.LoadPage(GetCategoryFullUrl(rootCategory.Url));
             var categoryRoot = categoryPage.DocumentNode;
 
 
