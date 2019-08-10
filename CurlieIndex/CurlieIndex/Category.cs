@@ -12,8 +12,7 @@ namespace CurlieIndex
         public int Id { get; }
         public string Name { get; set; }
         public string Url { get; set; }
-
-        //todo: can have multiple parents
+        
         public List<Category> Parents { get; } = new List<Category>();
 
         public Category PrimaryParent
