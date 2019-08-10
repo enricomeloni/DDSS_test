@@ -88,9 +88,6 @@ namespace CurlieIndex
 
             var subcategoriesSections = subcategoriesDiv.SelectNodes("section[@class='children']");
 
-            //var catItems = subcategoriesSections.SelectMany(subcategoriesSection => 
-            //    subcategoriesSection.SelectNodes("div/div[@class='cat-item']"));
-
             var catItems = new List<HtmlNode>();
             foreach (var subcategoriesSection in subcategoriesSections)
             {

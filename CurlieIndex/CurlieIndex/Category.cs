@@ -15,8 +15,6 @@ namespace CurlieIndex
 
         //todo: can have multiple parents
         public List<Category> Parents { get; } = new List<Category>();
-        public List<int> Related { get; set; }
-        public List<int> OtherLanguages { get; set; }
 
         public Category PrimaryParent
         {
