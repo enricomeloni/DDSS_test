@@ -94,7 +94,7 @@ namespace CurlieIndex
                 catItems.AddRange(subcategoriesSection.SelectNodes("div/div[@class='cat-item']"));
             }
             
-            //for demo purposes, we will extract only 1 subcategory per category
+            //for demo purposes, we will extract only 4 subcategories per category
             int categoriesExtracted = 0;
             int maxSubcategories = 4;
 
