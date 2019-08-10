@@ -21,7 +21,6 @@ namespace CurlieIndex
         {
             var loadPageWorker = CreateCurlieWorker(url);
             tasks.Enqueue(loadPageWorker);
-            Console.WriteLine($"task {url} enqueued");
             return loadPageWorker;
         }
 
@@ -67,7 +66,6 @@ namespace CurlieIndex
                 {
                     var task = tasks.Dequeue();
                     task.Start();
-                    Console.WriteLine("task started");
                 }
 
                 await Task.Delay(throttle);

@@ -28,8 +28,15 @@ namespace CurlieIndex
             var categorySectionNode = rootNode.SelectSingleNode("//section[@id='category-section']");
             var categoryAsides = categorySectionNode.SelectNodes("aside");
 
+            //for demo purposes skip Arts which is extra big
+            bool skipped = false;
             foreach (var categoryAside in categoryAsides)
             {
+                if (!skipped)
+                {
+                    skipped = true;
+                    continue;
+                }
                 await ParseRootCategory(categoryAside);
                 break;
             }
@@ -49,11 +56,11 @@ namespace CurlieIndex
         private async Task ParseRootCategory(HtmlNode categoryNode)
         {
             var aNode = categoryNode.SelectSingleNode("div/h2/a");
-
-
+            
             var name = aNode.InnerText;
             var url = aNode.Attributes["href"].Value;
 
+            Console.WriteLine($"Extracting root category {url}");
             var category = new Category
             {
                 Name = name,
@@ -67,6 +74,7 @@ namespace CurlieIndex
 
         private async Task ParseSubCategories(Category rootCategory)
         {
+            Console.WriteLine($"Extracting subcategories for {rootCategory.Url}");
             //read category page to find subcategories, related and other languages
             var categoryPage = await CurlieWebClient.LoadPage(GetCategoryFullUrl(rootCategory.Url));
             var categoryRoot = categoryPage.DocumentNode;
@@ -89,8 +97,15 @@ namespace CurlieIndex
                 catItems.AddRange(subcategoriesSection.SelectNodes("div/div[@class='cat-item']"));
             }
             
+            //for demo purposes, we will extract only 1 subcategory per category
+            int categoriesExtracted = 0;
+            int maxSubcategories = 4;
+
             foreach (var catItem in catItems)
             {
+                if (categoriesExtracted >= maxSubcategories)
+                    break;
+
                 var aNode = catItem.SelectSingleNode("a");
                 var url = aNode.Attributes["href"].Value;
 
@@ -111,6 +126,9 @@ namespace CurlieIndex
                 {
                     Categories[category.Url].Parents.Add(rootCategory);
                 }
+
+                ++categoriesExtracted;
+                Console.WriteLine($"Progress for {rootCategory.Url}: {categoriesExtracted}/{maxSubcategories}");
             }
         }
 
